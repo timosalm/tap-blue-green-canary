@@ -9,6 +9,6 @@ public class HelloWorldResource {
 
     @GetMapping
     public ResponseEntity<String> fetchGreeting() {
-        return ResponseEntity.ok("Hello Red!");
+        return ResponseEntity.ok("Hello Blue!");
     }
 }
