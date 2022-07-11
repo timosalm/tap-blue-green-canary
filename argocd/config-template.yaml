@@ -1,0 +1,47 @@
+apiVersion: carto.run/v1alpha1
+kind: ClusterConfigTemplate
+metadata:
+  name: config-template-argo
+spec:
+  configPath: .data
+  ytt: |
+    #@ load("@ytt:data", "data")
+    #@ load("@ytt:yaml", "yaml")
+    #@ load("@ytt:json", "json")
+
+    #@ def merge_labels(fixed_values):
+    #@   labels = {}
+    #@   if hasattr(data.values.workload.metadata, "labels"):
+    #@     labels.update(data.values.workload.metadata.labels)
+    #@   end
+    #@   labels.update(fixed_values)
+    #@   return labels
+    #@ end
+
+    #@ def delivery():
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      name: #@ data.values.workload.metadata.name
+      labels: #@ merge_labels({ "app.kubernetes.io/component": "run", "carto.run/workload-name": data.values.workload.metadata.name })
+    spec:
+      replicas: 2
+      revisionHistoryLimit: 2
+      selector:
+        matchLabels:
+          app: #@ data.values.workload.metadata.name
+      template: #@ data.values.config
+      strategy:
+        blueGreen: 
+          activeService: #@ data.values.workload.metadata.name + "-active"
+          previewService: #@ data.values.workload.metadata.name + "-preview"
+          autoPromotionEnabled: false
+    ---
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: #@ data.values.workload.metadata.name
+      labels: #@ merge_labels({ "app.kubernetes.io/component": "config" })
+    data:
+      delivery.yml: #@ yaml.encode(delivery())
+      #@ end
