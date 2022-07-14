@@ -1,7 +1,7 @@
 apiVersion: carto.run/v1alpha1
 kind: ClusterSupplyChain
 metadata:
-  name: advanced-deployment-strategy-argo
+  name: advanced-deployment-strategy-knative
 spec:
 spec:
   params:
@@ -63,10 +63,22 @@ spec:
   - configs:
     - name: config
       resource: config-provider
+    name: revision-config-provider
+    templateRef:
+      kind: ClusterConfigTemplate
+      name: revision-config-template-knative
+  - configs:
+    - name: revisionconfig
+      resource: revision-config-provider
+    - name: specconfig
+      resource: config-provider 
     name: app-config
     templateRef:
       kind: ClusterConfigTemplate
-      name: config-template-argo
+      name: config-template-knative
+    params:
+    - name: ingress_domain
+      value: emea.end2end.link
   - configs:
     - name: config
       resource: app-config
@@ -84,4 +96,4 @@ spec:
   selector:
     apps.tanzu.vmware.com/workload-type: web
     timosalm.de/advanced-deployment-strategy: "true"
-    timosalm.de/advanced-deployment-strategy-impl: "argo"
+    timosalm.de/advanced-deployment-strategy-impl: "knative"

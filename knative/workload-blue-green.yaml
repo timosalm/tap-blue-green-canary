@@ -1,13 +1,16 @@
 apiVersion: carto.run/v1alpha1
 kind: Workload
 metadata:
-  name: blue-green-argo
+  name: blue-green-knative
   labels:
-    app.kubernetes.io/part-of: spring-sensors
+    app.kubernetes.io/part-of: blue-green-knative
     apps.tanzu.vmware.com/workload-type: web
     timosalm.de/advanced-deployment-strategy: "true"
-    timosalm.de/advanced-deployment-strategy-impl: "argo"
+    timosalm.de/advanced-deployment-strategy-impl: "knative"
 spec:
+  params: 
+  - name: deployment_strategy
+    value: blue-green
   source:
     git:
       url: https://github.com/tsalm-pivotal/tap-blue-green-canary.git

@@ -1,0 +1,73 @@
+apiVersion: carto.run/v1alpha1
+kind: ClusterConfigTemplate
+metadata:
+  name: config-template-knative
+spec:
+ configPath: .data
+ ytt: |
+    #@ load("@ytt:data", "data")
+    #@ load("@ytt:yaml", "yaml")
+    #@ load("@ytt:json", "json")
+
+    #@ def param(key):
+    #@   if not key in data.values.params:
+    #@     return None
+    #@   end
+    #@   return data.values.params[key]
+    #@ end
+
+    #@ def merge_labels(fixed_values):
+    #@   labels = {}
+    #@   if hasattr(data.values.workload.metadata, "labels"):
+    #@     labels.update(data.values.workload.metadata.labels)
+    #@   end
+    #@   labels.update(fixed_values)
+    #@   return labels
+    #@ end
+
+    #@ def merge_annotations(fixed_values):
+    #@   annotations = {}
+    #@   if hasattr(data.values.workload.metadata, "annotations"):
+    #@     # DEPRECATED: remove in a future release
+    #@     annotations.update(data.values.workload.metadata.annotations)
+    #@   end
+    #@   if type(param("annotations")) == "dict" or type(param("annotations")) == "struct":
+    #@     annotations.update(param("annotations"))
+    #@   end
+    #@   annotations.update(fixed_values)
+    #@   return annotations
+    #@ end
+
+    #@ def delivery():
+    apiVersion: serving.knative.dev/v1
+    kind: Service
+    metadata:
+      name: #@ data.values.workload.metadata.name
+      #! annotations NOT merged because knative annotations would be invalid here
+      labels: #@ merge_labels({ "app.kubernetes.io/component": "run", "carto.run/workload-name": data.values.workload.metadata.name })
+    spec:
+      template: 
+        metadata:
+          name: #@ data.values.configs.revisionconfig.config.newRevision
+          labels: #@ data.values.configs.specconfig.config.metadata.labels
+          annotations: #@ data.values.configs.specconfig.config.metadata.annotations
+        spec: #@ data.values.configs.specconfig.config.spec
+      traffic:
+      #@ if type(data.values.configs.revisionconfig.config.latestRevision) == "string" and len(data.values.configs.revisionconfig.config.latestRevision):
+      - latestRevision: true
+        percent: 0
+      - revisionName: #@ data.values.configs.revisionconfig.config.latestRevision
+        percent: 100
+      #@ else:
+      - latestRevision: true
+        percent: 100
+      #@ end
+    #@ end
+    ---
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: #@ data.values.workload.metadata.name
+      labels: #@ merge_labels({ "app.kubernetes.io/component": "config" })
+    data:
+      delivery.yml: #@ yaml.encode(delivery())

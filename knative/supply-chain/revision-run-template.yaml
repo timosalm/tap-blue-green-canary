@@ -1,0 +1,46 @@
+apiVersion: carto.run/v1alpha1
+kind: ClusterRunTemplate
+metadata:
+  name: revision-run-template-knative
+spec:
+  outputs:
+    latestRevision: .status.taskResults[?(@.name=="latest-revision")].value
+    newRevision: .status.taskResults[?(@.name=="new-revision")].value
+  template:
+    apiVersion: tekton.dev/v1beta1
+    kind: TaskRun
+    metadata:
+      generateName: $(runnable.metadata.name)$-
+    spec:
+      workspaces:
+      - name: app-config
+        emptyDir: {}
+      taskSpec:
+        results:
+        - name: latest-revision
+        - name: new-revision
+        steps:
+        - image: gcr.io/cloud-builders/kubectl@sha256:8ab94be8b2b4f3d117f02d868b39540fddd225447abf4014f7ba4765cb39f753
+          name: fetch-configmap
+          script: |-
+            set -e
+            set -u
+
+            kubectl get cm $(runnable.spec.inputs.app-config-map-name)$ -o jsonpath='{.data.delivery\.yml}' --ignore-not-found > $(workspaces.app-config.path)/delivery.yml
+        - image: alpine
+          name: extract-current-and-gegerate-new-revision-name
+          script: |-
+            set -e
+            set -u
+
+            echo $(runnable.spec.inputs.only-to-trigger-new-run)$
+
+            wget https://github.com/mikefarah/yq/releases/download/v4.25.3/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
+            if [ -s $(workspaces.app-config.path)/delivery.yml ] ; then
+              echo -n $(yq '.spec.template.metadata.name' <  $(workspaces.app-config.path)/delivery.yml) | tee /tekton/results/latest-revision
+            else
+              echo -n "" | tee /tekton/results/latest-revision
+            fi  
+            echo -n blue-green-knative-$(cat /proc/sys/kernel/random/uuid) | tee /tekton/results/new-revision
+        workspaces:
+        - name: app-config

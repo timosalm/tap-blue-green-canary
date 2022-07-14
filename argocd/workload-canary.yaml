@@ -1,0 +1,19 @@
+apiVersion: carto.run/v1alpha1
+kind: Workload
+metadata:
+  name: canary-argo
+  labels:
+    app.kubernetes.io/part-of: canary-argo
+    apps.tanzu.vmware.com/workload-type: web
+    timosalm.de/advanced-deployment-strategy: "true"
+    timosalm.de/advanced-deployment-strategy-impl: "argo"
+spec:
+  params: 
+  - name: deployment_strategy
+    value: canary
+  source:
+    git:
+      url: https://github.com/tsalm-pivotal/tap-blue-green-canary.git
+      ref:
+        branch: main
+    subPath: sample-app/

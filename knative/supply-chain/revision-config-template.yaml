@@ -1,0 +1,22 @@
+apiVersion: carto.run/v1alpha1
+kind: ClusterConfigTemplate
+metadata:
+  name: revision-config-template-knative
+spec:
+ configPath: .status.outputs
+ ytt: |
+    #@ load("@ytt:data", "data")
+    #@ load("@ytt:base64", "base64")
+    #@ load("@ytt:yaml", "yaml")
+    ---
+    apiVersion: carto.run/v1alpha1
+    kind: Runnable
+    metadata:
+      name: #@ data.values.workload.metadata.name + "-revision-config-reader"
+    spec:
+      runTemplateRef:
+        name: revision-run-template-knative
+
+      inputs:
+        only-to-trigger-new-run: #@ base64.encode(yaml.encode(data.values.configs.config))
+        app-config-map-name: #@ data.values.workload.metadata.name

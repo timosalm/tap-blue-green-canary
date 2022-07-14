@@ -1,0 +1,102 @@
+apiVersion: carto.run/v1alpha1
+kind: ClusterConfigTemplate
+metadata:
+  name: config-template-argo
+spec:
+  params:
+  - name: ingress_domain
+    default: ""
+  configPath: .data
+  ytt: |
+    #@ load("@ytt:data", "data")
+    #@ load("@ytt:yaml", "yaml")
+    #@ load("@ytt:json", "json")
+
+    #@ def param(key):
+    #@   if not key in data.values.params:
+    #@     return None
+    #@   end
+    #@   return data.values.params[key]
+    #@ end
+
+    #@ def merge_labels(fixed_values):
+    #@   labels = {}
+    #@   if hasattr(data.values.workload.metadata, "labels"):
+    #@     labels.update(data.values.workload.metadata.labels)
+    #@   end
+    #@   labels.update(fixed_values)
+    #@   return labels
+    #@ end
+
+    #@ def delivery():
+    ---
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      name: #@ data.values.workload.metadata.name
+      labels: #@ merge_labels({ "app.kubernetes.io/component": "run", "carto.run/workload-name": data.values.workload.metadata.name })
+    spec:
+      replicas: 2
+      revisionHistoryLimit: 2
+      selector:
+        matchLabels:
+          carto.run/workload-name: #@ data.values.workload.metadata.name
+      template: #@ data.values.config
+      strategy:
+        #@ if param("deployment_strategy") == "canary":
+        canary:
+          maxSurge: "25%"
+          maxUnavailable: 0
+          steps:
+          - setWeight: 20
+          - pause: 
+              duration: 10
+          - setWeight: 40
+          - pause:
+              duration: 10
+          - setWeight: 60
+          - pause:
+              duration: 10
+          - setWeight: 80
+          - pause:
+              duration: 10
+        @end
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: #@ data.values.workload.metadata.name
+      labels: #@ merge_labels({ "app.kubernetes.io/component": "run", "carto.run/workload-name": data.values.workload.metadata.name })
+      annotations:
+        kapp.k14s.io/disable-default-label-scoping-rules: ""
+    spec:
+      ports:
+      - port: 80
+        targetPort: 8080
+        protocol: TCP
+        name: http
+      selector:
+        carto.run/workload-name: #@ data.values.workload.metadata.name
+    ---
+    apiVersion: projectcontour.io/v1
+    kind: HTTPProxy
+    metadata:
+      name: #@ data.values.workload.metadata.name
+      labels: #@ merge_labels({ "app.kubernetes.io/component": "run", "carto.run/workload-name": data.values.workload.metadata.name })
+    spec:
+      routes:
+      - services:
+        - name: #@ data.values.workload.metadata.name
+          port: 80
+      virtualhost:
+        fqdn: #@ data.values.workload.metadata.name + "-" + data.values.workload.metadata.namespace + "." + param("ingress_domain")
+    #@ end
+
+    ---
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: #@ data.values.workload.metadata.name
+      labels: #@ merge_labels({ "app.kubernetes.io/component": "config" })
+    data:
+      delivery.yml: #@ yaml.encode(delivery())
