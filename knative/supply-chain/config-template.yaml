@@ -56,11 +56,14 @@ spec:
       #@ if type(data.values.configs.revisionconfig.config.latestRevision) == "string" and len(data.values.configs.revisionconfig.config.latestRevision):
       - latestRevision: true
         percent: 0
+        tag: blue
       - revisionName: #@ data.values.configs.revisionconfig.config.latestRevision
         percent: 100
+        tag: green
       #@ else:
       - latestRevision: true
         percent: 100
+        tag: blue
       #@ end
     #@ end
     ---
