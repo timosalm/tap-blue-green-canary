@@ -19,6 +19,13 @@ spec:
         results:
         - name: latest-revision
         - name: new-revision
+        params:
+        - name: revision-prefix
+          default: $(runnable.spec.inputs.revision-prefix)$
+        - name: app-config-map-name
+          default: $(runnable.spec.inputs.app-config-map-name)$
+        - name: only-to-trigger-new-run
+          default: $(runnable.spec.inputs.only-to-trigger-new-run)$
         steps:
         - image: gcr.io/cloud-builders/kubectl@sha256:8ab94be8b2b4f3d117f02d868b39540fddd225447abf4014f7ba4765cb39f753
           name: fetch-configmap
@@ -26,14 +33,12 @@ spec:
             set -e
             set -u
 
-            kubectl get cm $(runnable.spec.inputs.app-config-map-name)$ -o jsonpath='{.data.delivery\.yml}' --ignore-not-found > $(workspaces.app-config.path)/delivery.yml
+            kubectl get cm $(params.app-config-map-name) -o jsonpath='{.data.delivery\.yml}' --ignore-not-found > $(workspaces.app-config.path)/delivery.yml
         - image: alpine
           name: extract-current-and-gegerate-new-revision-name
           script: |-
             set -e
             set -u
-
-            echo $(runnable.spec.inputs.only-to-trigger-new-run)$
 
             wget https://github.com/mikefarah/yq/releases/download/v4.25.3/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
             if [ -s $(workspaces.app-config.path)/delivery.yml ] ; then
@@ -41,6 +46,6 @@ spec:
             else
               echo -n "" | tee /tekton/results/latest-revision
             fi  
-            echo -n blue-green-knative-$(cat /proc/sys/kernel/random/uuid) | tee /tekton/results/new-revision
+            echo -n $(params.revision-prefix)-$(cat /proc/sys/kernel/random/uuid) | tee /tekton/results/new-revision
         workspaces:
         - name: app-config

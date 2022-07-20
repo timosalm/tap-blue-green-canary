@@ -6,6 +6,9 @@ To see the advanced deployment strategies in action, you have to **fork the repo
 
 ## Knative (part of TAP)
 
+### Limitations
+- Doesn't work with Service-Bindings or other modifications to the Knative Serving Service that happen in the cluster due to the deterministic naming of Revisions used for multi-cluster support.
+
 ### Prerequisites 
 - TAP installation with version >= 1.1 and GitOps configured (can be also done via Workload)
 - Set environment variable for your configured dev namespace
@@ -71,8 +74,15 @@ kubectl apply -f knative/supply-chain -n $DEVELOPER_NAMESPACE
   ```
 ### Apply the custom supply chain
 ```
-kubectl apply -f https://raw.githubusercontent.com/tektoncd/catalog/main/task/kubernetes-actions/0.2/kubernetes-actions.yaml -n $DEVELOPER_NAMESPACE
-kubectl apply -f knative/supply-chain -n $DEVELOPER_NAMESPACE
+kubectl apply -f argocd/supply-chain -n $DEVELOPER_NAMESPACE
 ```
 
 ## Flagger (WIP) 
+```
+helm repo add flagger https://flagger.app
+helm upgrade -i flagger flagger/flagger \
+--namespace tanzu-system-ingress \
+--set meshProvider=contour \
+--set ingressClass=contour \
+--set prometheus.install=true
+```

@@ -20,3 +20,4 @@ spec:
       inputs:
         only-to-trigger-new-run: #@ base64.encode(yaml.encode(data.values.configs.config))
         app-config-map-name: #@ data.values.workload.metadata.name
+        revision-prefix: #@ data.values.workload.metadata.name
