@@ -1,0 +1,315 @@
+apiVersion: carto.run/v1alpha1
+kind: ClusterSupplyChain
+metadata:
+  name: advanced-deployment-strategy-argo
+spec:
+  params:
+  - default: main
+    name: gitops_branch
+  - default: supplychain
+    name: gitops_user_name
+  - default: supplychain
+    name: gitops_user_email
+  - default: supplychain@cluster.local
+    name: gitops_commit_message
+  - default: ""
+    name: gitops_ssh_secret
+  resources:
+  - name: source-provider
+    params:
+    - name: serviceAccount
+      value: default
+    - name: gitImplementation
+      value: go-git
+    templateRef:
+      kind: ClusterSourceTemplate
+      name: source-template
+  - name: deliverable
+    params:
+    - name: registry
+      value:
+        repository: tap-wkld
+        server: harbor.emea.end2end.link
+    templateRef:
+      kind: ClusterTemplate
+      name: deliverable-template
+  - name: image-builder
+    params:
+    - name: serviceAccount
+      value: default
+    - name: clusterBuilder
+      value: default
+    - name: registry
+      value:
+        repository: tap-wkld
+        server: harbor.emea.end2end.link
+    sources:
+    - name: source
+      resource: source-provider
+    templateRef:
+      kind: ClusterImageTemplate
+      name: kpack-template
+  - images:
+    - name: image
+      resource: image-builder
+    name: config-provider
+    params:
+    - name: serviceAccount
+      value: default
+    templateRef:
+      kind: ClusterConfigTemplate
+      name: convention-template
+  - configs:
+    - name: config
+      resource: config-provider
+    name: app-config
+    templateRef:
+      kind: ClusterConfigTemplate
+      name: config-template-argo
+    params:
+    - name: ingress_domain
+      value: emea.end2end.link
+  - configs:
+    - name: config
+      resource: app-config
+    name: config-writer
+    params:
+    - name: serviceAccount
+      value: default
+    - name: registry
+      value:
+        repository: tap-wkld
+        server: harbor.emea.end2end.link
+    templateRef:
+      kind: ClusterTemplate
+      name: config-writer-template
+  selector:
+    apps.tanzu.vmware.com/workload-type: web
+    timosalm.de/advanced-deployment-strategy: "true"
+    timosalm.de/advanced-deployment-strategy-impl: "argo"
+
+
+apiVersion: carto.run/v1alpha1
+kind: ClusterSupplyChain
+metadata:
+  name: advanced-deployment-strategy-argo
+spec:
+  selector:
+    apps.tanzu.vmware.com/workload-type: web
+    timosalm.de/advanced-deployment-strategy: "true"
+    timosalm.de/advanced-deployment-strategy-impl: "argo"
+
+  params:
+    - name: maven_repository_url
+      value: #@ data.values.maven.repository.url
+    - name: gitops_branch
+      default: #@ data.values.gitops.branch
+    - name: gitops_user_name
+      default: #@ data.values.gitops.user_name
+    - name: gitops_user_email
+      default: #@ data.values.gitops.user_email
+    - name: gitops_commit_message
+      default: #@ data.values.gitops.commit_message
+    - name: gitops_ssh_secret
+      default: #@ data.values.gitops.ssh_secret
+    #@ if/end data.values.gitops.repository_prefix:
+    - name: gitops_repository_prefix
+      default: #@ data.values.gitops.repository_prefix
+    #@ if/end data.values.gitops.server_address:
+    - name: gitops_server_address
+      default: #@ data.values.gitops.server_address
+    #@ if/end data.values.gitops.repository_owner:
+    - name: gitops_repository_owner
+      default: #@ data.values.gitops.repository_owner
+    #@ if/end data.values.gitops.repository_name:
+    - name: gitops_repository_name
+      default: #@ data.values.gitops.repository_name
+    #@ if data.values.gitops.commit_strategy == "pull_request":
+    #@ if/end data.values.gitops.pull_request.server_kind:
+    - name: gitops_server_kind
+      default: #@ data.values.gitops.pull_request.server_kind
+    #@ if/end "commit_branch" in data.values.gitops.pull_request:
+    - name: gitops_commit_branch
+      default: #@ data.values.gitops.pull_request.commit_branch
+    #@ if/end data.values.gitops.pull_request.pull_request_title:
+    - name: gitops_pull_request_title
+      default: #@ data.values.gitops.pull_request.pull_request_title
+    #@ if/end data.values.gitops.pull_request.pull_request_body:
+    - name: gitops_pull_request_body
+      default: #@ data.values.gitops.pull_request.pull_request_body
+    #@ end
+
+  resources:
+  - name: source-provider
+    templateRef:
+      kind: ClusterSourceTemplate
+      name: source-template
+    params:
+      - name: serviceAccount
+        value: #@ data.values.service_account
+      - name: gitImplementation
+        value: #@ data.values.git_implementation
+
+  - name: deliverable
+    templateRef:
+      kind: ClusterTemplate
+      name: deliverable-template
+    params:
+      - name: registry
+        value: #@ data.values.registry
+
+  - name: image-builder
+    templateRef:
+      kind: ClusterImageTemplate
+      options:
+        - name: kpack-template
+          selector:
+            matchFields:
+              - key: spec.params[?(@.name=="dockerfile")]
+                operator: DoesNotExist
+        - name: kaniko-template
+          selector:
+            matchFields:
+              - key: spec.params[?(@.name=="dockerfile")]
+                operator: Exists
+    params:
+      - name: serviceAccount
+        value: #@ data.values.service_account
+      - name: registry
+        value: #@ data.values.registry
+      - name: clusterBuilder
+        default: #@ data.values.cluster_builder
+      - name: dockerfile
+        default: ./Dockerfile
+      - name: docker_build_context
+        default: ./
+      - name: docker_build_extra_args
+        default: []
+    sources:
+    - resource: source-provider
+      name: source
+
+  - name: config-provider
+    templateRef:
+      kind: ClusterConfigTemplate
+      name: convention-template
+    params:
+      - name: serviceAccount
+        value: #@ data.values.service_account
+    images:
+    - resource: image-builder
+      name: image
+
+  - name: app-config
+    templateRef:
+      kind: ClusterConfigTemplate
+      name: config-template
+    configs:
+      - resource: config-provider
+        name: config
+
+  - name: config-writer
+    templateRef:
+      kind: ClusterTemplate
+      name: #@ config_writer()
+    params:
+    - name: serviceAccount
+      value: #@ data.values.service_account
+    - name: registry
+        value: #@ data.values.registry
+    configs:
+      - resource: app-config
+        name: config
+
+
+---
+apiVersion: carto.run/v1alpha1
+kind: ClusterSupplyChain
+metadata:
+  name: advanced-deployment-strategy-argo
+spec:
+spec:
+  params:
+  - default: main
+    name: gitops_branch
+  - default: supplychain
+    name: gitops_user_name
+  - default: supplychain
+    name: gitops_user_email
+  - default: supplychain@cluster.local
+    name: gitops_commit_message
+  - default: ""
+    name: gitops_ssh_secret
+  resources:
+  - name: source-provider
+    params:
+    - name: serviceAccount
+      value: default
+    - name: gitImplementation
+      value: go-git
+    templateRef:
+      kind: ClusterSourceTemplate
+      name: source-template
+  - name: deliverable
+    params:
+    - name: registry
+      value:
+        repository: tap-wkld
+        server: harbor.emea.end2end.link
+    templateRef:
+      kind: ClusterTemplate
+      name: deliverable-template
+  - name: image-builder
+    params:
+    - name: serviceAccount
+      value: default
+    - name: clusterBuilder
+      value: default
+    - name: registry
+      value:
+        repository: tap-wkld
+        server: harbor.emea.end2end.link
+    sources:
+    - name: source
+      resource: source-provider
+    templateRef:
+      kind: ClusterImageTemplate
+      name: kpack-template
+  - images:
+    - name: image
+      resource: image-builder
+    name: config-provider
+    params:
+    - name: serviceAccount
+      value: default
+    templateRef:
+      kind: ClusterConfigTemplate
+      name: convention-template
+  - configs:
+    - name: config
+      resource: config-provider
+    name: app-config
+    templateRef:
+      kind: ClusterConfigTemplate
+      name: config-template-argo
+    params:
+    
+    
+  - configs:
+    - name: config
+      resource: app-config
+    name: config-writer
+    params:
+    - name: serviceAccount
+      value: default
+    - name: registry
+      value:
+        repository: tap-wkld
+        server: harbor.emea.end2end.link
+    templateRef:
+      kind: ClusterTemplate
+      name: config-writer-template
+  selector:
+    apps.tanzu.vmware.com/workload-type: web
+    timosalm.de/advanced-deployment-strategy: "true"
+    timosalm.de/advanced-deployment-strategy-impl: "argo"

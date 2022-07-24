@@ -1,3 +1,5 @@
+#@ load("@ytt:data", "data")
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -27,7 +29,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: default
-  namespace: dev
+  namespace: #@ data.values.developer_namespace
 rules:
 - apiGroups:
   - projectcontour.io
@@ -52,7 +54,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: default
-  namespace: dev
+  namespace: #@ data.values.developer_namespace
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -60,4 +62,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: default
-    namespace: dev
+    namespace: #@ data.values.developer_namespace
