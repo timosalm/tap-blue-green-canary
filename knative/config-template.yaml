@@ -55,6 +55,8 @@ spec:
       traffic:
       #@ if type(data.values.configs.revisionconfig.config.latestRevision) == "string" and len(data.values.configs.revisionconfig.config.latestRevision):
       - latestRevision: true
+        tag: canary
+      - revisionName: #@ data.values.configs.revisionconfig.config.newRevision
         percent: 0
         tag: blue
       - revisionName: #@ data.values.configs.revisionconfig.config.latestRevision
@@ -62,6 +64,8 @@ spec:
         tag: green
       #@ else:
       - latestRevision: true
+        tag: canary
+      - revisionName: #@ data.values.configs.revisionconfig.config.newRevision
         percent: 100
         tag: green
       #@ end
