@@ -65,11 +65,13 @@ If you're using RegistryOps ot want to use e.g. the kn CLI to do it directly at 
   ```
   kubectl get kservice <workload_name> -n <developer_namespace> -o jsonpath='{.status.url}'
   ```
-3. Shift traffic step by step to the latestRevision by editing the Knative Serving Service resource in e.g. the GitOps repository.
+3. Shift traffic step by step to the newet revision by editing the Knative Serving Service resource in e.g. the GitOps repository.
   ```
   spec:
     traffic:
     - latestRevision: true
+      tag: canary
+    - revisionName: <new-revision-name>
       percent: 0
       tag: blue
     - revisionName: <previous-revision-name>
@@ -81,6 +83,8 @@ If you're using RegistryOps ot want to use e.g. the kn CLI to do it directly at 
   spec:
     traffic:
     - latestRevision: true
+      tag: canary
+    - revisionName: <new-revision-name>
       percent: 25
       tag: blue
     - revisionName: <previous-revision-name>
@@ -89,7 +93,7 @@ If you're using RegistryOps ot want to use e.g. the kn CLI to do it directly at 
   ```
 
 ### Blue/Green deployment
-1. Change something in your sample application after the first deployment to deploy athe new, blue version.
+1. Change something in your sample application after the first deployment to deploy the new, blue version.
 2. Do quality assurance and user acceptance testing with the blue version. You can get the url via the following command:
   ```
   kubectl get kservice <workload_name> -n <developer_namespace> -o jsonpath='{.status.traffic[?(@.tag=="blue")].url}'
@@ -99,6 +103,8 @@ If you're using RegistryOps ot want to use e.g. the kn CLI to do it directly at 
   spec:
     traffic:
     - latestRevision: true
+      tag: canary
+    - revisionName: <new-revision-name>
       percent: 0
       tag: blue
     - revisionName: <previous-revision-name>
@@ -110,6 +116,8 @@ If you're using RegistryOps ot want to use e.g. the kn CLI to do it directly at 
   spec:
     traffic:
     - latestRevision: true
+      tag: canary
+    - revisionName: <new-revision-name>
       percent: 100
       tag: blue
     - revisionName: <previous-revision-name>
