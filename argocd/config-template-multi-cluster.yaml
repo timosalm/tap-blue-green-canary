@@ -83,6 +83,12 @@ spec:
           carto.run/workload-name: #@ data.values.workload.metadata.name
       template: #@ data.values.config
       strategy:
+        #@ if param("deployment_strategy") == "blue-green":
+        blueGreen: 
+          activeService: #@ data.values.workload.metadata.name
+          previewService: #@ data.values.workload.metadata.name + "-blue"
+          autoPromotionEnabled: false
+        #@ else:
         canary:
           maxSurge: "25%"
           maxUnavailable: 0
@@ -99,6 +105,7 @@ spec:
           - setWeight: 80
           - pause:
               duration: 10s
+        #@ end
     ---
     apiVersion: v1
     kind: Service
@@ -113,8 +120,28 @@ spec:
         targetPort: 8080
         protocol: TCP
         name: http
+      #@ if param("deployment_strategy") == "blue-green":
+      selector: {}
+      #@ else:
       selector:
         carto.run/workload-name: #@ data.values.workload.metadata.name
+      #@ end
+    #@ if param("deployment_strategy") == "blue-green":
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: #@ data.values.workload.metadata.name + "-blue"
+      labels: #@ merge_labels({ "app.kubernetes.io/component": "run", "carto.run/workload-name": data.values.workload.metadata.name })
+      annotations:
+        kapp.k14s.io/disable-default-label-scoping-rules: ""
+    spec:
+      ports:
+      - port: 80
+        targetPort: 8080
+        protocol: TCP
+        name: http
+      selector: {}
     #@ end
 
     #@ def claims():
