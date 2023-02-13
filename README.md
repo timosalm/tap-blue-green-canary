@@ -130,13 +130,12 @@ If you're using RegistryOps ot want to use e.g. the kn CLI to do it directly at 
 ### Limitations
 - Doesn't work with Knative Serving (Horizontal Pod Autoscaling is supported by ArgoCD Rollouts)
 - Automated ingress creation for multi cluster setup is out of scope of this example and only possible with additional customizations in the ClusterDelivery
-- Doesn't work for 
 
 ### Setup 
 
 Install ArgoCD and [Argo Rollouts](https://argoproj.github.io/argo-rollouts/installation/) in the run cluster.
 
-Customize a OOTB supply chain you exported from the cluster by changing the name, adding unique selectors and removing all generated fields (like annotations, status, ...).
+Customize a OOTB supply chain you exported from the cluster by changing the name, adding unique selectors and removing all generated fields (like annotations, status, ...) because some of them like `kapp.k14s.io/app: "xxx"` could prevent you from applying your custom supply chain to the cluster. 
 
 ```
 ytt -f argocd/supply-chain/supply-chain.yaml -f argocd/supply-chain/rbac.yaml -f argocd/supply-chain/config-template-multi-cluster.yaml -v gitops_repository_owner=tsalm -v container_registry.repository=tap-wkld -v container_registry.hostname=registry.example.com -v ingress.domain="" -v developer_namespace=default
